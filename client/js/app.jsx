@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
 import '../scss/application.scss';
-import PolarChart from './PolarChart.jsx';
+import PolarDiagramContainer from './PolarDiagramContainer.jsx';
 
 export default function App() {
   return (
     <div>
-      <PolarChart />
+      <PolarDiagramContainer />
     </div>
   )
 }
