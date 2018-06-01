@@ -89,8 +89,18 @@ export default class PolarDiagram {
     // Add angle tick marks
 
     // draw main scale for boat speed
+    const mainAxisTicks = this._radialScale.ticks();
+
+    // remove first and last values
+    mainAxisTicks.pop();
+    mainAxisTicks.shift();
+
+    const mainAxis = d3.axisTop(this._radialScale)
+      .tickValues(mainAxisTicks)
+      .tickSizeOuter(0);
+
     axisGroup.append("g")
-      .call(d3.axisTop(this._radialScale));
+      .call(mainAxis);
     return axisGroup;
   }
 
