@@ -10,11 +10,11 @@ export default class PolarDiagram {
     this._config = {
         displayWidth: options.displayWidth || 400,
         displayHeight: options.displayHeight || 800,
-        margin: {top: 20, right: 20, bottom: 20, left: 20},
+        margin: {top: 20, right: 40, bottom: 20, left: 20},
         radialPaddingFactor: 1.1,
         minDegreesToWind: options.minDegreesToWind || 30,
-        outerRimThickness: 1
-
+        outerRimThickness: 1,
+        outerRimLabelAngles: [180, 165, 150, 135, 120, 105, 90, 75, 60, 45, options.minDegreesToWind || 30]
       };
 
 
@@ -52,14 +52,14 @@ export default class PolarDiagram {
 
     // draw main radial gridlines at minDegreesToWind, 90deg, 180 deg
     axisGroup.selectAll(".radialGridline")
-      .data(this._radialGridlineData)
+      .data(this._radialCoordinates([this._config.minDegreesToWind, 90, 180], this._paddedOuterRadius))
       .enter().append("g")
         .attr("class", ".radialGridline")
       .append("line")
         .attr("x1", 0)
         .attr("y1", 0)
-        .attr("x2", (d, i) => { return this._radialScale(d.cart()[0]) })
-        .attr("y2", (d, i) => { return this._radialScale(d.cart()[1]) })
+        .attr("x2", (d, i) => { return this._radialScale(d.cart()[0]); })
+        .attr("y2", (d, i) => { return this._radialScale(d.cart()[1]); })
         .attr("class", "line")
         .style("stroke", "black")
         .style("stroke-width", "2px");
@@ -74,6 +74,20 @@ export default class PolarDiagram {
     axisGroup.append("path")
       .attr("d", dOuterRadius());
 
+    // Add angle labels
+
+    axisGroup.selectAll(".outerRimLabel")
+      .data(this._radialCoordinates(this._config.outerRimLabelAngles, this._paddedOuterRadius + 0.5))
+      .enter().append("g")
+        .classed(".outerRimLabel", true)
+      .append("text")
+        .attr("text-anchor", "middle")
+        .attr("x", (d, i) => { return this._radialScale(d.cart()[0]); })
+        .attr("y", (d, i) => { return this._radialScale(d.cart()[1]); })
+        .text((d, i) => { return (d.polar()[1] + 90) + "°"; });
+
+    // Add angle tick marks
+
     // draw main scale for boat speed
     axisGroup.append("g")
       .call(d3.axisTop(this._radialScale));
@@ -81,12 +95,11 @@ export default class PolarDiagram {
   }
 
   // return array of Coordinate objects corresponding to outer ends of radial gridlines.
-  get _radialGridlineData(){
-    const angles = [this._config.minDegreesToWind, 90, 180];
+  _radialCoordinates(angles, radius){
 
     return angles.map((angle) => {
       return  Coordinate.polar({
-        coords: [this._paddedOuterRadius, angle - 90],
+        coords: [radius, angle - 90],
         isDegree: true
       });
     })
