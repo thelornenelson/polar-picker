@@ -23,14 +23,14 @@ export default function(){
   lines.forEach((line) => {
     const splitLine = line.split(",");
     const windSpeedData = {
-      windSpeed: splitLine.shift(),
+      windSpeed: Number(splitLine.shift()),
       points: []
     };
 
     for(let i = 0; i + 1 < splitLine.length; i += 2){
       windSpeedData.points.push({
-        angle: splitLine[i],
-        boatSpeed: splitLine[i + 1]
+        angle: Number(splitLine[i]),
+        boatSpeed: Number(splitLine[i + 1])
       });
     }
 

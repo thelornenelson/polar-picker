@@ -6,7 +6,15 @@ export default class PolarDiagram {
 
   constructor(container, data, options = {}) {
 
-    this._data = data;
+    this._data = data.map((windSpeedSeries) => {
+      // ensure data is sorted by wind angle, ascending
+      windSpeedSeries.points.sort((pointA, pointB) => {
+        return pointA.angle - pointB.angle;
+      });
+
+      return windSpeedSeries;
+    });
+
     this._config = {
         displayWidth: options.displayWidth || 400,
         displayHeight: options.displayHeight || 800,
@@ -30,6 +38,7 @@ export default class PolarDiagram {
 
     this.baseGroup = this._drawSvgContainer(container);
     this.mainAxis = this._drawMainAxis(this.baseGroup);
+    this.polarCurves = this._drawPolarCurves(this.baseGroup);
 
   }
 
@@ -104,6 +113,27 @@ export default class PolarDiagram {
     return axisGroup;
   }
 
+  _drawPolarCurves(parentGroup){
+
+    const polarCurvesGroup = parentGroup.append("g").classed("polarCurves", true);
+
+    const defineCurvePath = d3.lineRadial()
+      .angle((point) => { console.log("point in lineRadial is", point); return Math.radians(point.angle); })
+      .radius((point) => { console.log(point); return this._radialScale(point.boatSpeed); })
+      .curve(d3.curveCardinal);
+
+    polarCurvesGroup.selectAll(".polarCurve")
+      .data(this._data)
+      .enter()
+        .append("g")
+          .classed(".polarCurve", true)
+      .append("path")
+        .attr("d", (d) => { console.log("d is", d); console.log("defineCurvePath(d)", defineCurvePath(d.points)); return defineCurvePath(d.points); })
+        .attr("fill", "none")
+        .attr("stroke", "black");
+
+  }
+
   // return array of Coordinate objects corresponding to outer ends of radial gridlines.
   _radialCoordinates(angles, radius){
 
@@ -121,7 +151,11 @@ export default class PolarDiagram {
   }
 
   get maxValue() {
-    return 10;
+    return d3.max(this._data, (windSpeedSeries) => {
+      return d3.max(windSpeedSeries.points, (point) => {
+        return point.boatSpeed;
+      });
+    });
   }
 
 }
