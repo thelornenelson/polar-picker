@@ -28,5 +28,8 @@
     "sass-loader": "^7.0.1",
     "style-loader": "^0.21.0",
     "webpack-dev-server": "^3.1.4"
+  },
+  "dependencies": {
+    "coordinate-systems": "^1.1.0"
   }
 }

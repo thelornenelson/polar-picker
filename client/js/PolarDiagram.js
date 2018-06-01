@@ -1,26 +1,29 @@
 const d3 = require('d3');
+const Coordinate = require('coordinate-systems');
 
 export default class PolarDiagram {
 
 
   constructor(container, data, options = {}) {
 
+    this._data = data;
     this._config = {
         displayWidth: options.displayWidth || 400,
         displayHeight: options.displayHeight || 800,
         margin: {top: 20, right: 20, bottom: 20, left: 20},
+        radialPaddingFactor: 1.1,
         minDegreesToWind: options.minDegreesToWind || 30
       };
 
-    this._data = data;
 
     // initialize scale for main axis (boat speed)
     this._radialScale = d3.scaleLinear()
       .range([0, this._config.displayWidth - this._config.margin.left - this._config.margin.right])
-      .domain([0, this.maxValue]);
+      .domain([0, this.maxValue * this._config.radialPaddingFactor]);
 
     this.baseGroup = this._drawSvgContainer(container);
     this.mainAxis = this._drawMainAxis(this.baseGroup);
+
   }
 
   _drawSvgContainer(container) {
@@ -37,9 +40,40 @@ export default class PolarDiagram {
   }
 
   _drawMainAxis(parentGroup) {
+    // Create group to hold axis and main radial gridlines
     const axisGroup = parentGroup.append("g").attr("class", "axisGroup");
+
+    const radialGridline = axisGroup.selectAll(".radialGridline")
+          .data(this._radialGridlineData)
+          .enter().append("g")
+            .attr("class", ".radialGridline");
+        //Append the lines
+        radialGridline.append("line")
+          .attr("x1", 0)
+          .attr("y1", 0)
+          .attr("x2", (d, i) => { return this._radialScale(d.cart()[0]) })
+          .attr("y2", (d, i) => { return this._radialScale(d.cart()[1]) })
+          .attr("class", "line")
+          .style("stroke", "black")
+          .style("stroke-width", "2px");
+
     axisGroup.append("g")
       .call(d3.axisBottom(this._radialScale));
+    return axisGroup;
+  }
+
+  get _radialGridlineData(){
+    const angles = [this._config.minDegreesToWind, 90, 180];
+
+    return angles.map((angle) => {
+      const coord =  Coordinate.polar({
+        coords: [this.maxValue * this._config.radialPaddingFactor, angle - 90],
+        isDegree: true
+      });
+      console.log(coord.cart());
+      return coord;
+    })
+
   }
 
   get maxValue() {
