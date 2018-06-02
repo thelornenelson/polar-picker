@@ -3,7 +3,7 @@ const Coordinate = require('coordinate-systems');
 
 export default class PolarDiagram {
 
-  constructor(container, data, mousePosition, options = {}) {
+  constructor(container, data, props, options = {}) {
 
     this._data = data.map((windSpeedSeries) => {
       // ensure data is sorted by wind angle, ascending
@@ -13,6 +13,8 @@ export default class PolarDiagram {
 
       return windSpeedSeries;
     });
+
+    this.props = props;
 
     this._config = {
         displayWidth: options.displayWidth || 400,
@@ -39,74 +41,77 @@ export default class PolarDiagram {
     this.mainAxis = this._drawMainAxis(this.baseGroup);
     this.polarCurves = this._drawPolarCurves(this.baseGroup);
 
-    if(mousePosition){
-      console.dir(mousePosition);
-      this.baseGroup.append("circle")
-        .attr("cx", mousePosition.x)
-        .attr("cy", mousePosition.y)
-        .attr("r", 5)
-        .attr("transform", "translate(" + (-this._config.margin.left) + "," + (-this._config.displayHeight / 2) + ")")
-        .style("fill", "yellow");
+    const circle = d3.select(container).append("circle")
+      .attr("r", 5)
+      // .attr("transform", "translate(" + (-this._config.margin.left) + "," + (-this._config.displayHeight / 2) + ")")
+      .style("fill", "yellow");
 
-      const m = [mousePosition.x - this._config.margin.left, mousePosition.y - this._config.displayHeight / 2]
-      console.dir(this.polarCurves.node());
-      const p = this.closestPoint(this.polarCurves.node(), m);
-      // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
-      circle.attr("cx", p[0]).attr("cy", p[1]);
+
+    const mouseMoved = () => {
+        const m = d3.mouse(this.baseGroup.node());
+        console.log("m is", m);
+        const p = this.closestPoint(this.polarCurves.node(), m);
+        console.log("Closest Point is", p);
+        // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
+        circle.attr("cx", p[0] + this._config.margin.left).attr("cy", p[1] + this._config.displayHeight / 2);
+    };
+
+    d3.select(container).on("mousemove", mouseMoved );
+  }
+
+
+
+  closestPoint(pathNode, point) {
+    var pathLength = pathNode.getTotalLength(),
+        precision = 8,
+        best,
+        bestLength,
+        bestDistance = Infinity;
+
+    // linear scan for coarse approximation
+    for (var scan, scanLength = 0, scanDistance; scanLength <= pathLength; scanLength += precision) {
+      if ((scanDistance = distance2(scan = pathNode.getPointAtLength(scanLength))) < bestDistance) {
+        best = scan, bestLength = scanLength, bestDistance = scanDistance;
+      }
+    }
+
+    // binary search for precise estimate
+    precision /= 2;
+    while (precision > 2) {
+      var before,
+          after,
+          beforeLength,
+          afterLength,
+          beforeDistance,
+          afterDistance;
+      if ((beforeLength = bestLength - precision) >= 0 && (beforeDistance = distance2(before = pathNode.getPointAtLength(beforeLength))) < bestDistance) {
+        best = before, bestLength = beforeLength, bestDistance = beforeDistance;
+      } else if ((afterLength = bestLength + precision) <= pathLength && (afterDistance = distance2(after = pathNode.getPointAtLength(afterLength))) < bestDistance) {
+        best = after, bestLength = afterLength, bestDistance = afterDistance;
+      } else {
+        precision /= 2;
+      }
+    }
+
+    best = [best.x, best.y];
+    best.distance = Math.sqrt(bestDistance);
+    return best;
+
+    function distance2(p) {
+      var dx = p.x - point[0],
+          dy = p.y - point[1];
+      return dx * dx + dy * dy;
     }
   }
-
-closestPoint(pathNode, point) {
-  var pathLength = pathNode.getTotalLength(),
-      precision = 8,
-      best,
-      bestLength,
-      bestDistance = Infinity;
-
-  // linear scan for coarse approximation
-  for (var scan, scanLength = 0, scanDistance; scanLength <= pathLength; scanLength += precision) {
-    if ((scanDistance = distance2(scan = pathNode.getPointAtLength(scanLength))) < bestDistance) {
-      best = scan, bestLength = scanLength, bestDistance = scanDistance;
-    }
-  }
-
-  // binary search for precise estimate
-  precision /= 2;
-  while (precision > 0.5) {
-    var before,
-        after,
-        beforeLength,
-        afterLength,
-        beforeDistance,
-        afterDistance;
-    if ((beforeLength = bestLength - precision) >= 0 && (beforeDistance = distance2(before = pathNode.getPointAtLength(beforeLength))) < bestDistance) {
-      best = before, bestLength = beforeLength, bestDistance = beforeDistance;
-    } else if ((afterLength = bestLength + precision) <= pathLength && (afterDistance = distance2(after = pathNode.getPointAtLength(afterLength))) < bestDistance) {
-      best = after, bestLength = afterLength, bestDistance = afterDistance;
-    } else {
-      precision /= 2;
-    }
-  }
-
-  best = [best.x, best.y];
-  best.distance = Math.sqrt(bestDistance);
-  return best;
-
-  function distance2(p) {
-    var dx = p.x - point[0],
-        dy = p.y - point[1];
-    return dx * dx + dy * dy;
-  }
-}
 
   _drawSvgContainer(container) {
     //append a container for the entire svg diagram
-    const svg = d3.select(container).append("svg")
-        .attr("width",  this._config.displayWidth)
-        .attr("height", this._config.displayHeight);
+    // const svg = d3.select(container).append("svg")
+    //     .attr("width",  this._config.displayWidth)
+    //     .attr("height", this._config.displayHeight);
 
     // append a group, transformed to the diagram origin
-    const baseGroup = svg.append("g")
+    const baseGroup = d3.select(container).append("g")
         .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight / 2) + ")");
 
     // const baseGroup = d3.select(container)

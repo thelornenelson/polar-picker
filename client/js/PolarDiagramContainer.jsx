@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import PolarDiagram from './PolarDiagram.js';
-import ReactFauxDOM from "react-faux-dom";
 import tempPolarData from "./tempPolarData.js"
 
 export default class PolarDiagramContainer extends Component {
@@ -8,13 +7,16 @@ export default class PolarDiagramContainer extends Component {
     super();
   }
 
+  componentDidMount() {
+   new PolarDiagram(this.node, tempPolarData(), this.props);
+  }
+  componentDidUpdate() {
+    new PolarDiagram(this.node, tempPolarData(), this.props);
+  }
+
   render(){
-
-    const container = ReactFauxDOM.createElement("div");
-
-    const polarDiagram = new PolarDiagram(container, tempPolarData(), this.props.mousePosition);
-    container.childNodes[0].addEventListener("onMouseMove", this.props.mouseHandler);
-    const toReact = container.toReact();
-    return toReact;
+    return (<svg ref={node => this.node = node}
+      width={400} height={800}>
+      </svg>);
   }
 }
