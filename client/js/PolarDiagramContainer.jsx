@@ -12,8 +12,9 @@ export default class PolarDiagramContainer extends Component {
 
     const container = ReactFauxDOM.createElement("div");
 
-    const polarDiagram = new PolarDiagram(container, tempPolarData());
-
-    return container.toReact();
+    const polarDiagram = new PolarDiagram(container, tempPolarData(), this.props.mousePosition);
+    container.childNodes[0].addEventListener("onMouseMove", this.props.mouseHandler);
+    const toReact = container.toReact();
+    return toReact;
   }
 }

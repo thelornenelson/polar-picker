@@ -3,8 +3,7 @@ const Coordinate = require('coordinate-systems');
 
 export default class PolarDiagram {
 
-
-  constructor(container, data, options = {}) {
+  constructor(container, data, mousePosition, options = {}) {
 
     this._data = data.map((windSpeedSeries) => {
       // ensure data is sorted by wind angle, ascending
@@ -40,7 +39,65 @@ export default class PolarDiagram {
     this.mainAxis = this._drawMainAxis(this.baseGroup);
     this.polarCurves = this._drawPolarCurves(this.baseGroup);
 
+    if(mousePosition){
+      console.dir(mousePosition);
+      this.baseGroup.append("circle")
+        .attr("cx", mousePosition.x)
+        .attr("cy", mousePosition.y)
+        .attr("r", 5)
+        .attr("transform", "translate(" + (-this._config.margin.left) + "," + (-this._config.displayHeight / 2) + ")")
+        .style("fill", "yellow");
+
+      const m = [mousePosition.x - this._config.margin.left, mousePosition.y - this._config.displayHeight / 2]
+      console.dir(this.polarCurves.node());
+      const p = this.closestPoint(this.polarCurves.node(), m);
+      // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
+      circle.attr("cx", p[0]).attr("cy", p[1]);
+    }
   }
+
+closestPoint(pathNode, point) {
+  var pathLength = pathNode.getTotalLength(),
+      precision = 8,
+      best,
+      bestLength,
+      bestDistance = Infinity;
+
+  // linear scan for coarse approximation
+  for (var scan, scanLength = 0, scanDistance; scanLength <= pathLength; scanLength += precision) {
+    if ((scanDistance = distance2(scan = pathNode.getPointAtLength(scanLength))) < bestDistance) {
+      best = scan, bestLength = scanLength, bestDistance = scanDistance;
+    }
+  }
+
+  // binary search for precise estimate
+  precision /= 2;
+  while (precision > 0.5) {
+    var before,
+        after,
+        beforeLength,
+        afterLength,
+        beforeDistance,
+        afterDistance;
+    if ((beforeLength = bestLength - precision) >= 0 && (beforeDistance = distance2(before = pathNode.getPointAtLength(beforeLength))) < bestDistance) {
+      best = before, bestLength = beforeLength, bestDistance = beforeDistance;
+    } else if ((afterLength = bestLength + precision) <= pathLength && (afterDistance = distance2(after = pathNode.getPointAtLength(afterLength))) < bestDistance) {
+      best = after, bestLength = afterLength, bestDistance = afterDistance;
+    } else {
+      precision /= 2;
+    }
+  }
+
+  best = [best.x, best.y];
+  best.distance = Math.sqrt(bestDistance);
+  return best;
+
+  function distance2(p) {
+    var dx = p.x - point[0],
+        dy = p.y - point[1];
+    return dx * dx + dy * dy;
+  }
+}
 
   _drawSvgContainer(container) {
     //append a container for the entire svg diagram
@@ -51,6 +108,9 @@ export default class PolarDiagram {
     // append a group, transformed to the diagram origin
     const baseGroup = svg.append("g")
         .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight / 2) + ")");
+
+    // const baseGroup = d3.select(container)
+    //     .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight / 2) + ")");
 
     return baseGroup;
   }
@@ -118,17 +178,17 @@ export default class PolarDiagram {
     const polarCurvesGroup = parentGroup.append("g").classed("polarCurves", true);
 
     const defineCurvePath = d3.lineRadial()
-      .angle((point) => { console.log("point in lineRadial is", point); return Math.radians(point.angle); })
-      .radius((point) => { console.log(point); return this._radialScale(point.boatSpeed); })
+      .angle((point) => { return Math.radians(point.angle); })
+      .radius((point) => { return this._radialScale(point.boatSpeed); })
       .curve(d3.curveCardinal);
 
-    polarCurvesGroup.selectAll(".polarCurve")
+    return polarCurvesGroup.selectAll(".polarCurve")
       .data(this._data)
       .enter()
         .append("g")
           .classed(".polarCurve", true)
       .append("path")
-        .attr("d", (d) => { console.log("d is", d); console.log("defineCurvePath(d)", defineCurvePath(d.points)); return defineCurvePath(d.points); })
+        .attr("d", (d) => { return defineCurvePath(d.points); })
         .attr("fill", "none")
         .attr("stroke", "black");
 
