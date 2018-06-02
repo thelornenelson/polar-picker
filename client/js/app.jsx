@@ -6,23 +6,21 @@ export default class App extends Component {
 
   constructor(){
     super();
-    this.state = { mousePosition: null };
-    this.testMouse = this.testMouse.bind(this);
+    this.state = { currentPoint: {speed: 0, angle: 0} }
+    this.updateCurrentPoint = this.updateCurrentPoint.bind(this);
   }
 
-  testMouse(e){
-    console.log(`(${e.offsetX},${e.offsetY})`);
-    console.dir(e);
-    this.setState({mousePosition: {x: e.offsetX, y: e.offsetY}});
+  updateCurrentPoint(newPoint){
+    this.setState({ currentPoint: newPoint });
   }
 
   render() {
     return (
       <div>
         <PolarDiagramContainer
-          mousePosition={ this.state.mousePosition }
-          mouseHandler={ this.testMouse }
+          updateCurrentPoint={this.updateCurrentPoint}
         />
+        <p>{this.state.currentPoint.speed} kt @ {this.state.currentPoint.angle}°</p>
       </div>
     )
   }

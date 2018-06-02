@@ -5,16 +5,13 @@ export default class PolarDiagram {
 
   constructor(container, data, props, options = {}) {
 
-    this._data = data.map((windSpeedSeries) => {
-      // ensure data is sorted by wind angle, ascending
-      windSpeedSeries.points.sort((pointA, pointB) => {
-        return pointA.angle - pointB.angle;
-      });
-
-      return windSpeedSeries;
-    });
+    this._data = this.checkData(data);
 
     this.props = props;
+    this.svg = d3.select(container);
+
+    // remove any previous contents so we don't render multiple times. Because of interaction with react, we need to re-render the whole thing whenever any data changes.
+    this.svg.selectAll("g").remove();
 
     this._config = {
         displayWidth: options.displayWidth || 400,
@@ -37,69 +34,114 @@ export default class PolarDiagram {
       .range([Math.radians(this._config.minDegreesToWind), Math.PI])
       .domain([this._config.minDegreesToWind, 180]);
 
+    console.log("Rendering Chart");
     this.baseGroup = this._drawSvgContainer(container);
     this.mainAxis = this._drawMainAxis(this.baseGroup);
     this.polarCurves = this._drawPolarCurves(this.baseGroup);
+    this.markClosestPoint();
 
-    const circle = d3.select(container).append("circle")
+  }
+
+  updateData(newData){
+    this._data = this.checkData(newData);
+    // this.polarCurves = this._drawPolarCurves(this.baseGroup);
+  }
+
+  checkData(data){
+    return data.map((windSpeedSeries) => {
+      // ensure data is sorted by wind angle, ascending
+      windSpeedSeries.points.sort((pointA, pointB) => {
+        return pointA.angle - pointB.angle;
+      });
+      return windSpeedSeries;
+    });
+  }
+
+  markClosestPoint() {
+    // create marker
+    const circle = this.baseGroup.append("circle")
       .attr("r", 5)
-      // .attr("transform", "translate(" + (-this._config.margin.left) + "," + (-this._config.displayHeight / 2) + ")")
       .style("fill", "yellow");
 
-
+    // event handler
     const mouseMoved = () => {
         const m = d3.mouse(this.baseGroup.node());
-        console.log("m is", m);
-        const p = this.closestPoint(this.polarCurves.node(), m);
-        console.log("Closest Point is", p);
+        const p = this.closestPoint(this.polarCurves.nodes(), m);
         // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
-        circle.attr("cx", p[0] + this._config.margin.left).attr("cy", p[1] + this._config.displayHeight / 2);
+        circle.attr("cx", p[0]).attr("cy", p[1]);
+        let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
+        this.props.updateCurrentPoint({speed: this._radialScale.invert(currentPoint[0]), angle: this._angularScale.invert(currentPoint[1]) + 90});
     };
 
-    d3.select(container).on("mousemove", mouseMoved );
+    // bind event
+    this.svg.on("mousemove", mouseMoved );
+
   }
 
 
+  // based on Closest Point on Path code from https://bl.ocks.org/mbostock/8027637 (Distributed under GPL 3.0)
+  // Modified to handle multiple paths
+  closestPoint(pathNodes, point) {
 
-  closestPoint(pathNode, point) {
-    var pathLength = pathNode.getTotalLength(),
-        precision = 8,
-        best,
-        bestLength,
-        bestDistance = Infinity;
+    const scanResults = [];
+    let precision = 8;
 
-    // linear scan for coarse approximation
-    for (var scan, scanLength = 0, scanDistance; scanLength <= pathLength; scanLength += precision) {
-      if ((scanDistance = distance2(scan = pathNode.getPointAtLength(scanLength))) < bestDistance) {
-        best = scan, bestLength = scanLength, bestDistance = scanDistance;
+    pathNodes.forEach((pathNode, index) => {
+      let pathLength = pathNode.getTotalLength(),
+      best,
+      bestLength,
+      bestDistance = Infinity;
+
+      // linear scan for coarse approximation
+      for (var scan, scanLength = 0, scanDistance; scanLength <= pathLength; scanLength += precision) {
+        if ((scanDistance = distance2(scan = pathNode.getPointAtLength(scanLength))) < bestDistance) {
+          best = scan, bestLength = scanLength, bestDistance = scanDistance;
+        }
+      }
+      scanResults.push({best, bestLength, bestDistance, pathLength, pathNodeIndex: index});
+    });
+    scanResults.sort((a, b) => {
+      b.bestDistance - a.bestDistance;
+    });
+
+    let overallBest = [scanResults[0].best.x, scanResults[0].best.y];
+    overallBest.distance = scanResults[0].bestDistance;
+    let lastPathBest = overallBest;
+    let currentResultIndex = 0;
+
+    while(currentResultIndex < scanResults.length){
+      const currentResult = scanResults[currentResultIndex];
+      // binary search for precise estimate
+      precision /= 2;
+      while (precision > 0.5) {
+        var before,
+        after,
+        beforeLength,
+        afterLength,
+        beforeDistance,
+        afterDistance;
+        if ((beforeLength = currentResult.bestLength - precision) >= 0 && (beforeDistance = distance2(before = pathNodes[currentResult.pathNodeIndex].getPointAtLength(beforeLength))) < currentResult.bestDistance) {
+          currentResult.best = before, currentResult.bestLength = beforeLength, currentResult.bestDistance = beforeDistance;
+        } else if ((afterLength = currentResult.bestLength + precision) <= currentResult.pathLength && (afterDistance = distance2(after = pathNodes[currentResult.pathNodeIndex].getPointAtLength(afterLength))) < currentResult.bestDistance) {
+          currentResult.best = after, currentResult.bestLength = afterLength, currentResult.bestDistance = afterDistance;
+        } else {
+          precision /= 2;
+        }
+      }
+
+      currentResult.best = [currentResult.best.x, currentResult.best.y];
+      currentResult.best.distance = Math.sqrt(currentResult.bestDistance);
+      lastPathBest = currentResult.best;
+      currentResultIndex += 1;
+      if(currentResult.best.distance < overallBest.distance){
+        overallBest = currentResult.best;
       }
     }
-
-    // binary search for precise estimate
-    precision /= 2;
-    while (precision > 2) {
-      var before,
-          after,
-          beforeLength,
-          afterLength,
-          beforeDistance,
-          afterDistance;
-      if ((beforeLength = bestLength - precision) >= 0 && (beforeDistance = distance2(before = pathNode.getPointAtLength(beforeLength))) < bestDistance) {
-        best = before, bestLength = beforeLength, bestDistance = beforeDistance;
-      } else if ((afterLength = bestLength + precision) <= pathLength && (afterDistance = distance2(after = pathNode.getPointAtLength(afterLength))) < bestDistance) {
-        best = after, bestLength = afterLength, bestDistance = afterDistance;
-      } else {
-        precision /= 2;
-      }
-    }
-
-    best = [best.x, best.y];
-    best.distance = Math.sqrt(bestDistance);
-    return best;
+    return overallBest;
 
     function distance2(p) {
-      var dx = p.x - point[0],
-          dy = p.y - point[1];
+      const dx = p.x - point[0];
+      const dy = p.y - point[1];
       return dx * dx + dy * dy;
     }
   }

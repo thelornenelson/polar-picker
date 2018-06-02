@@ -8,15 +8,27 @@ export default class PolarDiagramContainer extends Component {
   }
 
   componentDidMount() {
-   new PolarDiagram(this.node, tempPolarData(), this.props);
+    this.polarDiagram = new PolarDiagram(this.node, tempPolarData(), this.props);
   }
   componentDidUpdate() {
-    new PolarDiagram(this.node, tempPolarData(), this.props);
+    this.polarDiagram.updateData(tempPolarData());
   }
 
+  // get myProps(){
+  //   const myProps = Object.assign({}, this.props);
+  //   myProps.updateCurrentPoint = this.updateCurrentPoint;
+  //   return myProps;
+  // }
+
+
+
   render(){
-    return (<svg ref={node => this.node = node}
+    return (
+      <div>
+      <svg ref={node => this.node = node}
       width={400} height={800}>
-      </svg>);
+      </svg>
+      </div>
+    );
   }
 }
