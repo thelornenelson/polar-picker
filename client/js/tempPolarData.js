@@ -38,6 +38,7 @@ export default function(){
 
   })
 
+  // polarData structure is [ {windspeed: 14, points:[ {angle: 120, boatSpeed: 9.32}, ... ]}, ... ]
   return polarData;
 
 }
