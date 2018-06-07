@@ -93,6 +93,11 @@ export default class PolarDiagram {
     const p = this.closestPoint(this.polarCurves.nodes(), m);
     // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
     this.closestPointMarker.attr("cx", p[0]).attr("cy", p[1]);
+    this.updateCurrentPoint(p);
+  }
+
+  // takes point p, an array of point coordinates in cartesian pixels
+  updateCurrentPoint(p){
     let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
     let currentPointPixels = Coordinate.polar([currentPoint[0], currentPoint[1]]).cart();
     this.props.updateCurrentPoint({
@@ -323,6 +328,10 @@ export default class PolarDiagram {
       this.markClosestPoint(enable);
     };
 
+    const callUpdateCurrentPoint = (p) => {
+      this.updateCurrentPoint(p);
+    };
+
     const dataPoints = dataPointsGroup.selectAll(".dataPoint")
       .data(this._data.reduce((dataPoints, currentWindSpeedSeries) => {
         return [...dataPoints, ...currentWindSpeedSeries.points];
@@ -335,13 +344,14 @@ export default class PolarDiagram {
           .attr("cx", dataPointAttrs.cx)
           .attr("cy", dataPointAttrs.cy)
           .on("click.dataPoint", function() {
-            console.log("Hello");
+            console.log("Hello from point", d3.select(this).data());
           })
           .on("mouseover", function(d) {
             callMarkClosestPoint(false);
             d3.select(this)
               .attr("r", dataPointHighlightedAttrs.r)
               .attr("fill", dataPointHighlightedAttrs.fill);
+            callUpdateCurrentPoint(d3.mouse(this));
           })
           .on("mouseout", function(d) {
             callMarkClosestPoint(true);
