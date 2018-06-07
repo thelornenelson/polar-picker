@@ -76,6 +76,10 @@ div.diagram-container {
   height: 800px;
   position: relative;
 }
+
+circle.highlighted-point {
+  pointer-events: none;
+}
 //
 // div.tagline {
 //   font-size: 3rem;

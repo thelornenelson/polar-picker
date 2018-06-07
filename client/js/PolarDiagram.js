@@ -16,6 +16,7 @@ export default class PolarDiagram {
     this._config = {
         displayWidth: options.displayWidth || 400,
         displayHeight: options.displayHeight || 800,
+        centerPositionFromTop: 400,
         margin: {top: 20, right: 40, bottom: 20, left: 20},
         radialPaddingFactor: 1.1,
         minDegreesToWind: options.minDegreesToWind || 30,
@@ -38,6 +39,7 @@ export default class PolarDiagram {
     this.baseGroup = this._drawSvgContainer(container);
     this.mainAxis = this._drawMainAxis(this.baseGroup);
     this.polarCurves = this._drawPolarCurves(this.baseGroup);
+    this.dataPoints = this._drawDataPoints(this.baseGroup);
     this.markClosestPoint();
 
   }
@@ -61,7 +63,8 @@ export default class PolarDiagram {
     // create marker
     const circle = this.baseGroup.append("circle")
       .attr("r", 5)
-      .style("fill", "yellow");
+      .style("fill", "yellow")
+      .classed("highlighted-point", true);
 
     // event handler
     const mouseMoved = () => {
@@ -75,7 +78,7 @@ export default class PolarDiagram {
           speed: this._radialScale.invert(currentPoint[0]),
           angle: this._angularScale.invert(currentPoint[1]) + 90,
           x: currentPointPixels[0] + this._config.margin.left,
-          y: currentPointPixels[1] + this._config.displayHeight / 2 + this._config.margin.top
+          y: currentPointPixels[1] + this._config.displayHeight - this._config.centerPositionFromTop + this._config.margin.top
         });
     };
 
@@ -159,10 +162,7 @@ export default class PolarDiagram {
 
     // append a group, transformed to the diagram origin
     const baseGroup = d3.select(container).append("g")
-        .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight / 2) + ")");
-
-    // const baseGroup = d3.select(container)
-    //     .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight / 2) + ")");
+        .attr("transform", "translate(" + this._config.margin.left + "," + (this._config.displayHeight  - this._config.centerPositionFromTop) + ")");
 
     return baseGroup;
   }
@@ -237,14 +237,57 @@ export default class PolarDiagram {
     return polarCurvesGroup.selectAll(".polarCurve")
       .data(this._data)
       .enter()
-        // .append("g")
-          // .classed(".polarCurve", true)
-      .append("path")
-        .classed("polarCurve", true)
-        .attr("d", (d) => { return defineCurvePath(d.points); })
-        .attr("fill", "none")
-        .attr("stroke", "black");
+        .append("path")
+          .classed("polarCurve", true)
+          .attr("d", (d) => { return defineCurvePath(d.points); })
+          .attr("fill", "none")
+          .attr("stroke", "black");
 
+  }
+
+  _drawDataPoints(parentGroup){
+
+    const dataPointsGroup = parentGroup.append("g").classed("dataPoints", true);
+
+    const dataPointAttrs = {
+      r: 3,
+      fill: "tomato",
+      cx: (d) => {
+        const coordinate = this._radialCoordinates([d.angle], d.boatSpeed)[0];
+        return this._radialScale(coordinate.cart()[0]);
+      },
+      cy: (d) => {
+        const coordinate = this._radialCoordinates([d.angle], d.boatSpeed)[0];
+        return this._radialScale(coordinate.cart()[1]);
+      }
+    };
+
+    const dataPoints = dataPointsGroup.selectAll(".dataPoint")
+      .data(this._data.reduce((dataPoints, currentWindSpeedSeries) => {
+        return [...dataPoints, ...currentWindSpeedSeries.points];
+      }, []))
+      .enter()
+        .append("circle")
+          .classed("dataPoint", true)
+          .attr("r", dataPointAttrs.r)
+          .attr("fill", dataPointAttrs.fill)
+          .attr("cx", dataPointAttrs.cx)
+          .attr("cy", dataPointAttrs.cy)
+          .on("click.dataPoint", function() {
+            console.log("Hello");
+          })
+          .on("mouseover", function(d) {
+            d3.select(this)
+              .attr("r", 8)
+              .attr("fill", "orange");
+          })
+          .on("mouseout", function(d) {
+            d3.select(this)
+              .attr("r", 3)
+              .attr("fill", "tomato");
+          });
+
+    return dataPoints;
   }
 
   // return array of Coordinate objects corresponding to outer ends of radial gridlines.
