@@ -5,6 +5,8 @@ export default class PolarDiagram {
 
   constructor(container, data, props, options = {}) {
 
+    this.mouseMoved = this.mouseMoved.bind(this);
+
     this._data = this.checkData(data);
 
     this.props = props;
@@ -21,7 +23,10 @@ export default class PolarDiagram {
         radialPaddingFactor: 1.1,
         minDegreesToWind: options.minDegreesToWind || 30,
         outerRimThickness: 1,
-        outerRimLabelAngles: [180, 165, 150, 135, 120, 105, 90, 75, 60, 45, options.minDegreesToWind || 30]
+        outerRimLabelAngles: [180, 165, 150, 135, 120, 105, 90, 75, 60, 45, options.minDegreesToWind || 30],
+        dataPointAttrs: { r: 3, fill: "tomato" },
+        dataPointHighlightedAttrs: { r: 8, fill: "orange" },
+        closestPointAttrs: { r: 5, fill: "yellow" }
       };
 
 
@@ -59,32 +64,43 @@ export default class PolarDiagram {
     });
   }
 
-  markClosestPoint() {
-    // create marker
-    const circle = this.baseGroup.append("circle")
-      .attr("r", 5)
-      .style("fill", "yellow")
-      .classed("highlighted-point", true);
+  markClosestPoint(enable=true) {
 
-    // event handler
-    const mouseMoved = () => {
-        const m = d3.mouse(this.baseGroup.node());
-        const p = this.closestPoint(this.polarCurves.nodes(), m);
-        // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
-        circle.attr("cx", p[0]).attr("cy", p[1]);
-        let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
-        let currentPointPixels = Coordinate.polar([currentPoint[0], currentPoint[1]]).cart();
-        this.props.updateCurrentPoint({
-          speed: this._radialScale.invert(currentPoint[0]),
-          angle: this._angularScale.invert(currentPoint[1]) + 90,
-          x: currentPointPixels[0] + this._config.margin.left,
-          y: currentPointPixels[1] + this._config.displayHeight - this._config.centerPositionFromTop + this._config.margin.top
-        });
-    };
+    if(!this.closestPointMarker) {
+      // create marker if it doesn't already exist
+      this.closestPointMarker = this.baseGroup.append("circle")
+      .attr("r", this._config.closestPointAttrs.r)
+      .style("fill", this._config.closestPointAttrs.fill)
+      .classed("closest-point", true);
+    }
 
-    // bind event
-    this.svg.on("mousemove", mouseMoved );
+    if(enable){
+      // bind event
+      this.svg.on("mousemove", this.mouseMoved );
+      this.closestPointMarker
+        .attr("fill-opacity", 1)
+    } else {
+      this.svg.on("mousemove", null);
+      this.closestPointMarker
+        .attr("fill-opacity", 0);
+    }
 
+  }
+
+  // event handler to move highlighted circle
+  mouseMoved() {
+    const m = d3.mouse(this.baseGroup.node());
+    const p = this.closestPoint(this.polarCurves.nodes(), m);
+    // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
+    this.closestPointMarker.attr("cx", p[0]).attr("cy", p[1]);
+    let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
+    let currentPointPixels = Coordinate.polar([currentPoint[0], currentPoint[1]]).cart();
+    this.props.updateCurrentPoint({
+      speed: this._radialScale.invert(currentPoint[0]),
+      angle: this._angularScale.invert(currentPoint[1]) + 90,
+      x: currentPointPixels[0] + this._config.margin.left,
+      y: currentPointPixels[1] + this._config.displayHeight - this._config.centerPositionFromTop + this._config.margin.top
+    });
   }
 
   // based on Closest Point on Path code from https://bl.ocks.org/mbostock/8027637 (Distributed under GPL 3.0)
@@ -93,6 +109,8 @@ export default class PolarDiagram {
 
     const scanResults = [];
     let precision = 8;
+
+    // const closestDataPoint = this.closestDataPoint({x: point[0], y: point[1]});
 
     pathNodes.forEach((pathNode, index) => {
       let pathLength = pathNode.getTotalLength(),
@@ -145,6 +163,7 @@ export default class PolarDiagram {
         overallBest = currentResult.best;
       }
     }
+    // return overallBest.distance < closestDataPoint.distance ? overallBest : closestDataPoint;
     return overallBest;
 
     function distance2(p) {
@@ -153,6 +172,42 @@ export default class PolarDiagram {
       return dx * dx + dy * dy;
     }
   }
+
+  // // point should be of the form {x: 1, y: 1} where x and y are cartesian pixel coordinates
+  // closestDataPoint(point) {
+  //
+  //   function distance2(p1, p2) {
+  //     const dx = p1.x - p2.x;
+  //     const dy = p1.y - p2.y;
+  //     return dx * dx + dy * dy;
+  //   }
+  //
+  //   // reduce data structure to array of dataPoints
+  //   let dataPoints = this._data.reduce((dataPoints, currentWindSpeedSeries) => {
+  //     return [...dataPoints, ...currentWindSpeedSeries.points];
+  //   }, []);
+  //
+  //   // convert all points to pixels
+  //   dataPoints = dataPoints.map(dataPoint => this.dataPointToPixels(dataPoint));
+  //
+  //   const closestPoint = dataPoints.reduce((closest, current, index) => {
+  //     console.log("Closest", closest);
+  //     console.log("Current", current);
+  //     console.log("Index", index);
+  //     console.log("Point", point);
+  //     current.distance = distance2(point, current);
+  //
+  //     if(index === 0){
+  //       return current;
+  //     } else {
+  //       return current.distance < closest.distance ? current : closest;
+  //     }
+  //   }, null);
+  //
+  //   closestPoint.distance = Math.sqrt(closestPoint.distance);
+  //
+  //   return closestPoint;
+  // }
 
   _drawSvgContainer(container) {
     //append a container for the entire svg diagram
@@ -250,8 +305,8 @@ export default class PolarDiagram {
     const dataPointsGroup = parentGroup.append("g").classed("dataPoints", true);
 
     const dataPointAttrs = {
-      r: 3,
-      fill: "tomato",
+      r: this._config.dataPointAttrs.r,
+      fill: this._config.dataPointAttrs.fill,
       cx: (d) => {
         const coordinate = this._radialCoordinates([d.angle], d.boatSpeed)[0];
         return this._radialScale(coordinate.cart()[0]);
@@ -260,6 +315,12 @@ export default class PolarDiagram {
         const coordinate = this._radialCoordinates([d.angle], d.boatSpeed)[0];
         return this._radialScale(coordinate.cart()[1]);
       }
+    };
+
+    const dataPointHighlightedAttrs = this._config.dataPointHighlightedAttrs;
+
+    const callMarkClosestPoint = (enable) => {
+      this.markClosestPoint(enable);
     };
 
     const dataPoints = dataPointsGroup.selectAll(".dataPoint")
@@ -277,17 +338,28 @@ export default class PolarDiagram {
             console.log("Hello");
           })
           .on("mouseover", function(d) {
+            callMarkClosestPoint(false);
             d3.select(this)
-              .attr("r", 8)
-              .attr("fill", "orange");
+              .attr("r", dataPointHighlightedAttrs.r)
+              .attr("fill", dataPointHighlightedAttrs.fill);
           })
           .on("mouseout", function(d) {
+            callMarkClosestPoint(true);
             d3.select(this)
-              .attr("r", 3)
-              .attr("fill", "tomato");
+              .attr("r", dataPointAttrs.r)
+              .attr("fill", dataPointAttrs.fill);
           });
 
     return dataPoints;
+  }
+
+  dataPointToPixels(dataPoint) {
+    const coordinate = Coordinate.polar({
+      coords: [dataPoint.boatSpeed, dataPoint.angle - 90],
+      isDegree: true
+    }).cart();
+
+    return { x: coordinate[0], y: coordinate[1] };
   }
 
   // return array of Coordinate objects corresponding to outer ends of radial gridlines.
