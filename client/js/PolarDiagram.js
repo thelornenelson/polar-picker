@@ -70,14 +70,19 @@ export default class PolarDiagram {
         // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
         circle.attr("cx", p[0]).attr("cy", p[1]);
         let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
-        this.props.updateCurrentPoint({speed: this._radialScale.invert(currentPoint[0]), angle: this._angularScale.invert(currentPoint[1]) + 90});
+        let currentPointPixels = Coordinate.polar([currentPoint[0], currentPoint[1]]).cart();
+        this.props.updateCurrentPoint({
+          speed: this._radialScale.invert(currentPoint[0]),
+          angle: this._angularScale.invert(currentPoint[1]) + 90,
+          x: currentPointPixels[0] + this._config.margin.left,
+          y: currentPointPixels[1] + this._config.displayHeight / 2 + this._config.margin.top
+        });
     };
 
     // bind event
     this.svg.on("mousemove", mouseMoved );
 
   }
-
 
   // based on Closest Point on Path code from https://bl.ocks.org/mbostock/8027637 (Distributed under GPL 3.0)
   // Modified to handle multiple paths
@@ -232,9 +237,10 @@ export default class PolarDiagram {
     return polarCurvesGroup.selectAll(".polarCurve")
       .data(this._data)
       .enter()
-        .append("g")
-          .classed(".polarCurve", true)
+        // .append("g")
+          // .classed(".polarCurve", true)
       .append("path")
+        .classed("polarCurve", true)
         .attr("d", (d) => { return defineCurvePath(d.points); })
         .attr("fill", "none")
         .attr("stroke", "black");

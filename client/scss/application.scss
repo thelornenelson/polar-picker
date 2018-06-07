@@ -23,9 +23,20 @@
 //   padding: 3rem 0 0 3rem;
 // }
 //
+
+@import url('https://fonts.googleapis.com/css?family=Indie+Flower');
+
+*, *:before, *:after {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
 body {
   background-color: #88b3ca;
   color: #fff;
+  box-sizing: border-box;
+  font-family: 'Indie Flower', cursive;
 }
 
 text {
@@ -36,9 +47,34 @@ svg {
   border: 0px solid black;
 }
 
+path.polarCurve {
+
+  stroke-width: 2;
+  &:nth-child(even) {
+    stroke: #51103C;
+  }
+
+  &:nth-child(odd) {
+    stroke: #8E1C42;
+  }
+
+}
+
+#polar-diagram-tooltip {
+  border: 1px solid black;
+  border-radius: 2px;
+  width: 100px;
+  height: 25px;
+  padding-left: 3px;
+  position: absolute;
+  background: rgba(0, 0, 0, 0.3);
+  transition: opacity 0.5s ease;
+}
+
 div.diagram-container {
   width: 400px;
   height: 800px;
+  position: relative;
 }
 //
 // div.tagline {

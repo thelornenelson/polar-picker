@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import '../scss/application.scss';
 import PolarDiagramContainer from './PolarDiagramContainer.jsx';
+import NumberFormatter from 'number-formatter';
 
 export default class App extends Component {
 
@@ -18,9 +19,9 @@ export default class App extends Component {
     return (
       <div>
         <PolarDiagramContainer
-          updateCurrentPoint={this.updateCurrentPoint}
+          updateCurrentPoint={ this.updateCurrentPoint }
+          currentPoint={ this.state.currentPoint }
         />
-        <p>{this.state.currentPoint.speed} kt @ {this.state.currentPoint.angle}°</p>
       </div>
     )
   }
