@@ -18,23 +18,31 @@ export default class App extends Component {
 
     this.updateCurrentPoint = this.updateCurrentPoint.bind(this);
     this.updateEditPoint = this.updateEditPoint.bind(this);
-    this.setEditMode = this.setEditMode.bind(this);
   }
 
-  updateCurrentPoint(newPoint){
-    if(!this.state.editActive){
-      this.setState({ currentPoint: newPoint });
+  updateCurrentPoint(newPoint, action){
+    console.log(newPoint);
+    const actions = {
+      update: () => {
+        if(!this.state.editActive){
+          this.setState({ currentPoint: newPoint })
+        }
+      },
+      edit: () => {
+        this.setState({ currentPoint: newPoint, editActive: true });
+      }
+    }
+
+    try {
+      actions[action]();
+    } catch (e) {
+      console.log(`Unrecognized Action ${action}`, e);
     }
   }
 
   updateEditPoint(input){
     const newData = input.split(/@/)
     setState({ editPoint: { speed: newData[0], angle: newData[1]} });
-  }
-
-  setEditMode(active=true){
-    console.log(`Setting edit mode to ${active}`);
-    this.setState({ editActive: active });
   }
 
   render() {

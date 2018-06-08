@@ -92,30 +92,41 @@ export default class PolarDiagram {
     const m = d3.mouse(this.baseGroup.node());
     const p = this.closestPoint(this.polarCurves.nodes(), m);
     // line.attr("x1", p[0]).attr("y1", p[1]).attr("x2", m[0]).attr("y2", m[1]);
-    this.closestPointMarker.attr("cx", p[0]).attr("cy", p[1]);
+    this.closestPointMarker.attr("cx", p.x).attr("cy", p.y);
     this.updateCurrentPoint(p);
   }
 
-  // takes point p, an array of point coordinates in cartesian pixels
-  updateCurrentPoint(p){
-    let currentPoint = Coordinate.cart([p[0], p[1]]).polar();
-    let currentPointPixels = Coordinate.polar([currentPoint[0], currentPoint[1]]).cart();
-    this.props.updateCurrentPoint({
-      speed: this._radialScale.invert(currentPoint[0]),
-      angle: this._angularScale.invert(currentPoint[1]) + 90,
-      x: currentPointPixels[0] + this._config.margin.left,
-      y: currentPointPixels[1] + this._config.displayHeight - this._config.centerPositionFromTop + this._config.margin.top
-    });
+  // takes point p, an object with either x and y pixel coordinates, or speed and angle keys. Will automatically calculate the other keys and call the update function passed as a prop with the complete {x, y, speed, angle} point.
+  updateCurrentPoint(p, action="update"){
+    if(p.x){
+      // if x and y were provided
+      let currentPointPolar = Coordinate.cart([p.x, p.y]).polar();
+      p.speed = this._radialScale.invert(currentPointPolar[0]);
+      p.angle = this._angularScale.invert(currentPointPolar[1]) + 90;
+    } else {
+      // otherwise, if speed and heading were provided
+      console.log(p);
+      let currentPointPixels = Coordinate.polar({
+        coords: [this._radialScale(p.speed), this._angularScale(p.angle - 90)]
+      }).cart();
+      p.x = currentPointPixels[0];
+      p.y = currentPointPixels[1];
+    }
+
+    // account for margins
+    p.x += this._config.margin.left;
+    p.y += this._config.displayHeight - this._config.centerPositionFromTop + this._config.margin.top;
+
+
+    this.props.updateCurrentPoint(p, action);
   }
 
   // based on Closest Point on Path code from https://bl.ocks.org/mbostock/8027637 (Distributed under GPL 3.0)
-  // Modified to handle multiple paths
+  // Modified to handle multiple paths and return {x: , y: } object instead of array.
   closestPoint(pathNodes, point) {
 
     const scanResults = [];
     let precision = 8;
-
-    // const closestDataPoint = this.closestDataPoint({x: point[0], y: point[1]});
 
     pathNodes.forEach((pathNode, index) => {
       let pathLength = pathNode.getTotalLength(),
@@ -168,8 +179,7 @@ export default class PolarDiagram {
         overallBest = currentResult.best;
       }
     }
-    // return overallBest.distance < closestDataPoint.distance ? overallBest : closestDataPoint;
-    return overallBest;
+    return {x: overallBest[0], y: overallBest[1]};
 
     function distance2(p) {
       const dx = p.x - point[0];
@@ -177,42 +187,6 @@ export default class PolarDiagram {
       return dx * dx + dy * dy;
     }
   }
-
-  // // point should be of the form {x: 1, y: 1} where x and y are cartesian pixel coordinates
-  // closestDataPoint(point) {
-  //
-  //   function distance2(p1, p2) {
-  //     const dx = p1.x - p2.x;
-  //     const dy = p1.y - p2.y;
-  //     return dx * dx + dy * dy;
-  //   }
-  //
-  //   // reduce data structure to array of dataPoints
-  //   let dataPoints = this._data.reduce((dataPoints, currentWindSpeedSeries) => {
-  //     return [...dataPoints, ...currentWindSpeedSeries.points];
-  //   }, []);
-  //
-  //   // convert all points to pixels
-  //   dataPoints = dataPoints.map(dataPoint => this.dataPointToPixels(dataPoint));
-  //
-  //   const closestPoint = dataPoints.reduce((closest, current, index) => {
-  //     console.log("Closest", closest);
-  //     console.log("Current", current);
-  //     console.log("Index", index);
-  //     console.log("Point", point);
-  //     current.distance = distance2(point, current);
-  //
-  //     if(index === 0){
-  //       return current;
-  //     } else {
-  //       return current.distance < closest.distance ? current : closest;
-  //     }
-  //   }, null);
-  //
-  //   closestPoint.distance = Math.sqrt(closestPoint.distance);
-  //
-  //   return closestPoint;
-  // }
 
   _drawSvgContainer(container) {
     //append a container for the entire svg diagram
@@ -328,8 +302,8 @@ export default class PolarDiagram {
       this.markClosestPoint(enable);
     };
 
-    const callUpdateCurrentPoint = (p) => {
-      this.updateCurrentPoint(p);
+    const callUpdateCurrentPoint = (p, action="update") => {
+      this.updateCurrentPoint(p, action);
     };
 
     const callSetEditMode = (active) => {
@@ -348,15 +322,17 @@ export default class PolarDiagram {
           .attr("cx", dataPointAttrs.cx)
           .attr("cy", dataPointAttrs.cy)
           .on("click.dataPoint", function() {
-            console.log("Hello from point", d3.select(this).data());
-            callSetEditMode(true);
+            const data = d3.select(this).data()[0];
+            callUpdateCurrentPoint({ speed: data.boatSpeed, angle: data.angle }, "edit");
           })
           .on("mouseover", function(d) {
             callMarkClosestPoint(false);
             d3.select(this)
               .attr("r", dataPointHighlightedAttrs.r)
               .attr("fill", dataPointHighlightedAttrs.fill);
-            callUpdateCurrentPoint(d3.mouse(this));
+
+            const pixelPosition = d3.mouse(this);
+            callUpdateCurrentPoint({ x: pixelPosition[0], y: pixelPosition[1] });
           })
           .on("mouseout", function(d) {
             callMarkClosestPoint(true);
