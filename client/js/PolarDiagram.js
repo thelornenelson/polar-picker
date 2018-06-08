@@ -332,6 +332,10 @@ export default class PolarDiagram {
       this.updateCurrentPoint(p);
     };
 
+    const callSetEditMode = (active) => {
+      this.props.setEditMode(active);
+    }
+
     const dataPoints = dataPointsGroup.selectAll(".dataPoint")
       .data(this._data.reduce((dataPoints, currentWindSpeedSeries) => {
         return [...dataPoints, ...currentWindSpeedSeries.points];
@@ -345,6 +349,7 @@ export default class PolarDiagram {
           .attr("cy", dataPointAttrs.cy)
           .on("click.dataPoint", function() {
             console.log("Hello from point", d3.select(this).data());
+            callSetEditMode(true);
           })
           .on("mouseover", function(d) {
             callMarkClosestPoint(false);

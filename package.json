@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "coordinate-systems": "^1.1.0",
+    "immutability-helper": "^2.7.0",
     "number-formatter": "^1.2.0"
   }
 }
