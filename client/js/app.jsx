@@ -10,9 +10,10 @@ export default class App extends Component {
   constructor(){
     super();
     this.state = {
-      currentPoint: {speed: 0, angle: 0},
+      currentPoint: {boatSpeed: 0, angle: 0},
+      // polarData structure is [ {windspeed: 14, points:[ {angle: 120, boatSpeed: 9.32}, ... ]}, ... ]
       polarData: tempPolarData(),
-      editPoint: { speed: null, angle: null },
+      editPoint: { boatSpeed: null, angle: null },
       editActive: false
     }
 
@@ -21,15 +22,40 @@ export default class App extends Component {
   }
 
   updateCurrentPoint(newPoint, action){
-    console.log(newPoint);
+
     const actions = {
       update: () => {
         if(!this.state.editActive){
           this.setState({ currentPoint: newPoint })
         }
       },
-      edit: () => {
-        this.setState({ currentPoint: newPoint, editActive: true });
+      beginEdit: () => {
+        this.setState({ currentPoint: newPoint, editActive: true, editPoint: newPoint });
+        document.getElementById("polarDiagramEditInput").focus();
+      },
+      saveEdit: () => {
+
+        let pointsIndex;
+
+        const polarDataIndex = this.state.polarData.findIndex(({ points }) => {
+          pointsIndex = points.findIndex((point) => {
+
+            return point.boatSpeed === this.state.currentPoint.boatSpeed && point.angle === this.state.currentPoint.angle;
+          });
+          return pointsIndex >= 0 ? true : false;
+        });
+
+        const newPolarDataPoint = { boatSpeed: this.state.editPoint.boatSpeed, angle: this.state.editPoint.angle };
+
+        this.setState({
+          polarData: update(this.state.polarData, { [polarDataIndex]: { "points": { [pointsIndex]: { $set: newPolarDataPoint } } } }),
+          editActive: false
+        });
+
+
+
+        // find the current point in polarData
+        // Use found indices to set state to editPoint
       }
     }
 
@@ -42,7 +68,7 @@ export default class App extends Component {
 
   updateEditPoint(input){
     const newData = input.split(/@/)
-    setState({ editPoint: { speed: newData[0], angle: newData[1]} });
+    this.setState({ editPoint: { boatSpeed: Number(newData[0]), angle: Number(newData[1]) } });
   }
 
   render() {
@@ -51,9 +77,9 @@ export default class App extends Component {
         <PolarDiagramContainer
           updateCurrentPoint={ this.updateCurrentPoint }
           updateEditPoint={ this.updateEditPoint }
-          setEditMode={ this.setEditMode }
           currentPoint={ this.state.currentPoint }
           polarData={ this.state.polarData }
+          editPoint={ this.state.editPoint }
           editActive={ this.state.editActive }
         />
       </div>

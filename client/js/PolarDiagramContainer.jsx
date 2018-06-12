@@ -19,7 +19,10 @@ export default class PolarDiagramContainer extends Component {
         width={400} height={800}>
         </svg>
         <PolarDiagramToolTip
+        updateEditPoint={ this.props.updateEditPoint }
+        updateCurrentPoint={ this.props.updateCurrentPoint }
         currentPoint={ this.props.currentPoint }
+        editPoint={ this.props.editPoint }
         editActive={ this.props.editActive }
         />
       </div>

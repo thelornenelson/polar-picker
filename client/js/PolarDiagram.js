@@ -42,16 +42,17 @@ export default class PolarDiagram {
 
     console.log("Rendering Chart");
     this.baseGroup = this._drawSvgContainer(container);
-    this.mainAxis = this._drawMainAxis(this.baseGroup);
-    this.polarCurves = this._drawPolarCurves(this.baseGroup);
-    this.dataPoints = this._drawDataPoints(this.baseGroup);
+    this.mainAxis = this._drawMainAxis(this.baseGroup, true);
+    this.polarCurves = this._drawPolarCurves(this.baseGroup, true);
+    this.dataPoints = this._drawDataPoints(this.baseGroup, true);
     this.markClosestPoint();
 
   }
 
   updateData(newData){
     this._data = this.checkData(newData);
-    // this.polarCurves = this._drawPolarCurves(this.baseGroup);
+    this._drawPolarCurves(this.baseGroup);
+    this._drawDataPoints(this.baseGroup);
   }
 
   checkData(data){
@@ -96,18 +97,17 @@ export default class PolarDiagram {
     this.updateCurrentPoint(p);
   }
 
-  // takes point p, an object with either x and y pixel coordinates, or speed and angle keys. Will automatically calculate the other keys and call the update function passed as a prop with the complete {x, y, speed, angle} point.
+  // takes point p, an object with either x and y pixel coordinates, or boatSpeed and angle keys. Will automatically calculate the other keys and call the update function passed as a prop with the complete {x, y, boatSpeed, angle} point.
   updateCurrentPoint(p, action="update"){
     if(p.x){
       // if x and y were provided
       let currentPointPolar = Coordinate.cart([p.x, p.y]).polar();
-      p.speed = this._radialScale.invert(currentPointPolar[0]);
+      p.boatSpeed = this._radialScale.invert(currentPointPolar[0]);
       p.angle = this._angularScale.invert(currentPointPolar[1]) + 90;
     } else {
-      // otherwise, if speed and heading were provided
-      console.log(p);
+      // otherwise, if boatSpeed and heading were provided
       let currentPointPixels = Coordinate.polar({
-        coords: [this._radialScale(p.speed), this._angularScale(p.angle - 90)]
+        coords: [this._radialScale(p.boatSpeed), this._angularScale(p.angle - 90)]
       }).cart();
       p.x = currentPointPixels[0];
       p.y = currentPointPixels[1];
@@ -201,9 +201,9 @@ export default class PolarDiagram {
     return baseGroup;
   }
 
-  _drawMainAxis(parentGroup) {
+  _drawMainAxis(parentGroup, initialize) {
     // Create group to hold axis and main radial gridlines
-    const axisGroup = parentGroup.append("g").attr("class", "axisGroup");
+    const axisGroup = initialize ? parentGroup.append("g").attr("class", "axisGroup") : parentGroup.select("g .axisGroup");
 
     // draw main radial gridlines at minDegreesToWind, 90deg, 180 deg
     axisGroup.selectAll(".radialGridline")
@@ -259,30 +259,37 @@ export default class PolarDiagram {
     return axisGroup;
   }
 
-  _drawPolarCurves(parentGroup){
+  _drawPolarCurves(parentGroup, initialize=false){
 
-    const polarCurvesGroup = parentGroup.append("g").classed("polarCurves", true);
+    const polarCurvesGroup = initialize ? parentGroup.append("g").classed("polarCurves", true) : parentGroup.select("g .polarCurves");
 
     const defineCurvePath = d3.lineRadial()
       .angle((point) => { return Math.radians(point.angle); })
       .radius((point) => { return this._radialScale(point.boatSpeed); })
       .curve(d3.curveCardinal);
 
-    return polarCurvesGroup.selectAll(".polarCurve")
-      .data(this._data)
-      .enter()
-        .append("path")
-          .classed("polarCurve", true)
-          .attr("d", (d) => { return defineCurvePath(d.points); })
-          .attr("fill", "none")
-          .attr("stroke", "black");
+    // const polarCurves = polarCurvesGroup.selectAll(".polarCurve")
+    const polarCurves = polarCurvesGroup.selectAll(".polarCurve")
+      .data(this._data);
 
+    polarCurves.exit()
+        .remove();
+
+    return polarCurves.enter()
+      .append("path")
+        .classed("polarCurve", true)
+        .attr("fill", "none")
+        .attr("stroke", "black")
+      .merge(polarCurves)
+          .attr("d", (d) => { return defineCurvePath(d.points); });
+
+    // return polarCurves;
   }
 
-  _drawDataPoints(parentGroup){
+  _drawDataPoints(parentGroup, initialize=false){
 
-    const dataPointsGroup = parentGroup.append("g").classed("dataPoints", true);
-
+    const dataPointsGroup = initialize ? parentGroup.append("g").classed("dataPoints", true) : parentGroup.select("g .dataPoints");
+    console.log(dataPointsGroup);
     const dataPointAttrs = {
       r: this._config.dataPointAttrs.r,
       fill: this._config.dataPointAttrs.fill,
@@ -313,17 +320,22 @@ export default class PolarDiagram {
     const dataPoints = dataPointsGroup.selectAll(".dataPoint")
       .data(this._data.reduce((dataPoints, currentWindSpeedSeries) => {
         return [...dataPoints, ...currentWindSpeedSeries.points];
-      }, []))
-      .enter()
+      }, []));
+
+      dataPoints.exit()
+        .remove();
+
+    dataPoints.enter()
         .append("circle")
           .classed("dataPoint", true)
           .attr("r", dataPointAttrs.r)
           .attr("fill", dataPointAttrs.fill)
+        .merge(dataPoints)
           .attr("cx", dataPointAttrs.cx)
           .attr("cy", dataPointAttrs.cy)
           .on("click.dataPoint", function() {
             const data = d3.select(this).data()[0];
-            callUpdateCurrentPoint({ speed: data.boatSpeed, angle: data.angle }, "edit");
+            callUpdateCurrentPoint({ boatSpeed: data.boatSpeed, angle: data.angle }, "beginEdit");
           })
           .on("mouseover", function(d) {
             callMarkClosestPoint(false);
